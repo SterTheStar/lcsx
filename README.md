@@ -50,13 +50,6 @@ python3 -m lcsx.lcsx -p mydata
 python3 -m lcsx.lcsx --help
 ```
 
-### Options
-
-| Option                 | Description            |
-| ---------------------- | ---------------------- |
-| `-h, --help`           | Show help message      |
-| `-p PATH, --path PATH` | Specify data directory |
-
 ### First Run
 
 LCSX will guide you to configure:
