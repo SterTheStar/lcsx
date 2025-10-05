@@ -7,21 +7,27 @@ Main entry point for the LCSX tool.
 import json
 import os
 import sys
-from core.proot import run_proot_command, start_proot_shell
-from core.setup import setup_environment
-from ui.cli import prompt_setup
-from ui.ascii import display_ascii
-from config.config import load_config, save_config, is_configured
+
+# Add parent directory to path for absolute imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from lcsx.core.proot import run_proot_command, start_proot_shell
+from lcsx.core.setup import setup_environment
+from lcsx.ui.cli import prompt_setup
+from lcsx.ui.ascii import display_ascii
+from lcsx.config.config import load_config, save_config, is_configured
+from lcsx.ui.logger import print_main
 
 def main():
     # Check for help option
     if len(sys.argv) > 1 and (sys.argv[1] in ('-h', '--help')):
-        from help import print_help
+        from lcsx.help import print_help
         print_help()
         return
 
     # Display ASCII art
     display_ascii()
+
+    print_main("Welcome to LCSX setup.")
 
     # Check for custom data directory argument
     custom_data_dir = None
@@ -53,7 +59,7 @@ def main():
                 base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
                 custom_data_dir = os.path.abspath(os.path.join(base_dir, path_arg))
         if custom_data_dir:
-            print(f"Using custom data directory: {custom_data_dir}")
+            print_main(f"Using custom data directory: {custom_data_dir}")
 
     # Determine data directory
     data_dir = custom_data_dir if custom_data_dir else os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), 'data')
@@ -82,22 +88,22 @@ def main():
                     shutil.copy2(old_proot_bin, config['proot_bin'])
             with open(custom_config_file, 'w') as f:
                 json.dump(config, f, indent=4)
-            print("Configuration migrated to custom data directory.")
+            print_main("Configuration migrated to custom data directory.")
 
 
     # Check if configured
     if is_configured(data_dir):
         config = load_config(data_dir, default_data_dir)
-        print(f"Configuration found. Starting LCSX for user '{config['user']}' on '{config['hostname']}'...")
+        print_main(f"Configuration found. Starting LCSX for user '{config['user']}' on '{config['hostname']}'...")
         start_proot_shell(config)
     else:
-        print("No configuration found. Setting up LCSX...")
+        print_main("No configuration found. Setting up LCSX...")
         config = prompt_setup(pre_data_dir=custom_data_dir)
         if custom_data_dir:
             config['data_dir'] = custom_data_dir
         setup_environment(config)
         save_config(config, data_dir)
-        print("Setup complete. Starting LCSX...")
+        print_main("Setup complete. Starting LCSX...")
         start_proot_shell(config)
 
 if __name__ == "__main__":
