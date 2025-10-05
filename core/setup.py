@@ -6,16 +6,9 @@ Handles initial environment setup inside proot.
 import os
 import urllib.request
 import urllib.error
-import subprocess
+import tarfile
 import sys
 from .proot import run_proot_command
-
-if getattr(sys, 'frozen', False):
-    base_dir = os.path.dirname(sys.executable)
-else:
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-data_dir = os.path.join(base_dir, 'data')
 
 def download_progress(block_num, block_size, total_size):
     """Progress callback for download."""
@@ -38,9 +31,14 @@ def download_and_extract(url, dest_dir):
         print(f"\nError downloading rootfs: {e}")
         raise
     print("\nExtracting rootfs...")
-    result = subprocess.run(['tar', '--exclude=dev/*', '-xf', tar_path, '-C', dest_dir], capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"Error extracting rootfs: {result.stderr}")
+    try:
+        with tarfile.open(tar_path, 'r:xz') as tar:
+            # Extract all except dev/* and device files
+            for member in tar.getmembers():
+                if not member.name.startswith('dev/') and not member.isdev():
+                    tar.extract(member, dest_dir)
+    except Exception as e:
+        print(f"Error extracting rootfs: {e}")
         raise Exception("Extraction failed")
     os.remove(tar_path)
     print("Extraction complete.")
@@ -55,12 +53,13 @@ def setup_environment(config):
     """Set up the proot environment: download rootfs."""
     distro_url = config['distro_url']
     proot_bin = config['proot_bin']
+    data_dir = config['data_dir']
 
     # Download and extract rootfs if not exists or invalid
     base_dir = os.path.join(data_dir, 'rootfs')
     rootfs = base_dir
     if os.path.exists(base_dir):
-        # Check if subdir
+            # Check if subdir
         extracted_items = os.listdir(base_dir)
         if len(extracted_items) == 1 and os.path.isdir(os.path.join(base_dir, extracted_items[0])):
             rootfs = os.path.join(base_dir, extracted_items[0])
@@ -80,3 +79,7 @@ def setup_environment(config):
     bashrc_path = os.path.join(rootfs, 'root', '.bashrc')
     with open(bashrc_path, 'a') as f:
         f.write(f'\nexport PS1="{user}@{hostname}# "\n')
+
+    # Save config after setup
+    from config.config import save_config
+    save_config(config)

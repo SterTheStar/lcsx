@@ -7,21 +7,13 @@ import subprocess
 import os
 import sys
 
-if getattr(sys, 'frozen', False):
-    # Running as PyInstaller bundle
-    base_dir = os.path.dirname(sys.executable)
-else:
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-data_dir = os.path.join(base_dir, 'data')
-
-def get_proot_path(proot_bin):
+def get_proot_path(data_dir, proot_bin):
     """Get the path to the proot binary."""
     return os.path.join(data_dir, 'libs', proot_bin)
 
-def run_proot_command(rootfs, command, input=None, capture_output=False, proot_bin='proot'):
+def run_proot_command(data_dir, rootfs, command, input=None, capture_output=False, proot_bin='proot'):
     """Run a command inside proot."""
-    proot_path = get_proot_path(proot_bin)
+    proot_path = get_proot_path(data_dir, proot_bin)
     cmd = [proot_path, '-r', rootfs, '-0', '-w', '/']
     if isinstance(command, str):
         cmd.append(command)
@@ -33,12 +25,13 @@ def start_proot_shell(config):
     """Start the proot shell with the configured prompt or sshx."""
     rootfs = config['rootfs']
     proot_bin = config['proot_bin']
+    data_dir = config['data_dir']
     user = config['user']
     hostname = config['hostname']
     use_sshx = config.get('use_sshx', False)
     sshx_path = config.get('sshx_path')
     print(f"Starting proot shell as '{user}@{hostname}'...")
-    proot_path = get_proot_path(proot_bin)
+    proot_path = get_proot_path(data_dir, proot_bin)
     cmd = [proot_path, '-r', rootfs, '-0', '-w', '/']
     if use_sshx and sshx_path:
         abs_sshx_dir = os.path.abspath(os.path.dirname(sshx_path))

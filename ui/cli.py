@@ -10,19 +10,32 @@ import urllib.request
 import subprocess
 import sys
 
-if getattr(sys, 'frozen', False):
-    base_dir = os.path.dirname(sys.executable)
-else:
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-data_dir = os.path.join(base_dir, 'data')
-
-def prompt_setup():
+def prompt_setup(pre_data_dir=None):
     """Prompt user for setup information."""
     print("Welcome to LCSX setup.")
     user = input("Enter username to create: ").strip()
     hostname = input("Enter hostname: ").strip()
     password = getpass.getpass("Enter password for user: ")
+
+    # Ask for custom data directory
+    base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+    default_data_dir = os.path.join(base_dir, 'data')
+    if pre_data_dir:
+        data_dir = pre_data_dir
+    else:
+        custom = input(f"Do you want to use a custom path for the data folder? (default: {default_data_dir}) (y/n): ").strip().lower()
+        if custom == 'y':
+            data_dir_input = input("Enter the path for the data folder (relative to binary or absolute): ").strip()
+            if os.path.isabs(data_dir_input):
+                data_dir = os.path.abspath(data_dir_input)
+                print(f"In the next run, use './lcsx -a \"{data_dir}\"' to start with this data directory.")
+            else:
+                data_dir = os.path.join(base_dir, data_dir_input)
+                relative = os.path.relpath(data_dir, base_dir)
+                print(f"In the next run, use './lcsx {relative}' to start with this data directory.")
+        else:
+            data_dir = default_data_dir
+
     rootfs = 'rootfs'  # Default rootfs directory
 
     # Detect architecture
@@ -73,5 +86,6 @@ def prompt_setup():
         'proot_bin': proot_bin,
         'distro_url': distro_url,
         'use_sshx': use_sshx,
-        'sshx_path': sshx_path
+        'sshx_path': sshx_path,
+        'data_dir': data_dir
     }
