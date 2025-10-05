@@ -36,7 +36,10 @@ def download_and_extract(url, dest_dir):
             # Extract all except dev/* and device files
             for member in tar.getmembers():
                 if not member.name.startswith('dev/') and not member.isdev():
-                    tar.extract(member, dest_dir)
+                    try:
+                        tar.extract(member, dest_dir)
+                    except PermissionError as e:
+                        print(f"Permission denied, skipping file: {member.name}")
     except Exception as e:
         print(f"Error extracting rootfs: {e}")
         raise Exception("Extraction failed")

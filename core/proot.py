@@ -36,6 +36,8 @@ def start_proot_shell(config):
     if use_sshx and sshx_path:
         abs_sshx_dir = os.path.abspath(os.path.dirname(sshx_path))
         cmd.extend(['-b', f'{abs_sshx_dir}:/sshx'])
+        # Mount pseudo-terminals for better sshx compatibility
+        cmd.extend(['-b', '/dev/ptmx:/dev/ptmx', '-b', '/dev/pts:/dev/pts', '-b', '/dev/tty:/dev/tty'])
         command = ['/sshx/sshx']
     else:
         command = ['/bin/bash', '-c', f'export PS1="{user}@{hostname}# "; /bin/bash']
