@@ -2,9 +2,10 @@
 
 # LCSX
 
-LCSX automates setup and management of PRoot environments, simplifying the download of root filesystems, configuration, and shell integration for Linux distributions.
+LCSX simplifies PRoot setup, managing root filesystems, configuration, and shell integration.
 
-</div>
+</div><img width="1328" height="665" alt="sshxlcsx" src="https://github.com/user-attachments/assets/0045b977-0dac-41ad-af78-cfc83eceae51" />
+
 
 ---
 
@@ -61,7 +62,7 @@ LCSX will guide you to configure:
 ## Building
 
 ```bash
-pip install pyinstaller staticx
+pip install pyinstaller staticx psutil
 ./build.sh
 ```
 
