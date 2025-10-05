@@ -8,8 +8,6 @@ import json
 import os
 import sys
 
-# Add parent directory to path for absolute imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from lcsx.core.proot import run_proot_command, start_proot_shell
 from lcsx.core.setup import setup_environment
 from lcsx.ui.cli import prompt_setup
@@ -20,7 +18,7 @@ from lcsx.ui.logger import print_main
 def main():
     # Check for help option
     if len(sys.argv) > 1 and (sys.argv[1] in ('-h', '--help')):
-        from lcsx.help import print_help
+        from .help import print_help
         print_help()
         return
 

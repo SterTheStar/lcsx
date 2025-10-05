@@ -1,0 +1,1 @@
+from .lcsx import main
