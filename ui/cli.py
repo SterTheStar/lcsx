@@ -40,16 +40,42 @@ def prompt_setup(pre_data_dir=None):
 
     # Detect architecture
     arch = platform.machine()
-    if arch == 'x86_64':
-        proot_bin = 'proot'
-        distro_url = "https://github.com/termux/proot-distro/releases/download/v4.29.0/debian-trixie-x86_64-pd-v4.29.0.tar.xz"
-        sshx_url = "https://sshx.s3.amazonaws.com/sshx-x86_64-unknown-linux-musl.tar.gz"
-        proot_url = "https://raw.githubusercontent.com/SterTheStar/lcsx/8d13901c99e8a222838999e11682ea0a7d797940/libs/proot"
-    elif arch == 'aarch64':
-        proot_bin = 'prootarm64'
-        distro_url = "https://github.com/termux/proot-distro/releases/download/v4.29.0/debian-trixie-aarch64-pd-v4.29.0.tar.xz"
-        sshx_url = "https://sshx.s3.amazonaws.com/sshx-aarch64-unknown-linux-musl.tar.gz"
-        proot_url = "https://raw.githubusercontent.com/SterTheStar/lcsx/8d13901c99e8a222838999e11682ea0a7d797940/libs/prootarm64"
+    if arch in ('x86_64', 'aarch64'):
+        if arch == 'x86_64':
+            proot_bin = 'proot'
+            sshx_url = "https://sshx.s3.amazonaws.com/sshx-x86_64-unknown-linux-musl.tar.gz"
+            proot_url = "https://raw.githubusercontent.com/SterTheStar/lcsx/8d13901c99e8a222838999e11682ea0a7d797940/libs/proot"
+        elif arch == 'aarch64':
+            proot_bin = 'prootarm64'
+            sshx_url = "https://sshx.s3.amazonaws.com/sshx-aarch64-unknown-linux-musl.tar.gz"
+            proot_url = "https://raw.githubusercontent.com/SterTheStar/lcsx/8d13901c99e8a222838999e11682ea0a7d797940/libs/prootarm64"
+
+        # Define available distros
+        distros = {
+            'Debian': f"https://github.com/termux/proot-distro/releases/download/v4.29.0/debian-trixie-{arch}-pd-v4.29.0.tar.xz",
+            'Adélie': f"https://github.com/termux/proot-distro/releases/download/v4.29.0/adelie-{arch}-pd-v4.29.0.tar.xz",
+            'Arch Linux': f"https://github.com/termux/proot-distro/releases/download/v4.29.0/archlinux-{arch}-pd-v4.29.0.tar.xz",
+            'Fedora': f"https://github.com/termux/proot-distro/releases/download/v4.29.0/fedora-{arch}-pd-v4.29.0.tar.xz",
+            'Void': f"https://github.com/termux/proot-distro/releases/download/v4.29.0/void-{arch}-pd-v4.29.0.tar.xz",
+            'Alpine': f"https://github.com/termux/proot-distro/releases/download/v4.29.0/alpine-{arch}-pd-v4.29.0.tar.xz",
+        }
+
+        # Prompt user to choose distro
+        print("Choose a Linux distribution:")
+        for i, distro in enumerate(distros.keys(), 1):
+            print(f"{i}. {distro}")
+        choice = input("Enter the number of your choice (default: 1 for Debian): ").strip()
+        try:
+            choice_num = int(choice)
+            if 1 <= choice_num <= len(distros):
+                selected_distro = list(distros.keys())[choice_num - 1]
+                distro_url = distros[selected_distro]
+            else:
+                print("Invalid choice, defaulting to Debian.")
+                distro_url = distros['Debian']
+        except ValueError:
+            print("Invalid input, defaulting to Debian.")
+            distro_url = distros['Debian']
     else:
         print(f"Unsupported architecture: {arch}")
         exit(1)
