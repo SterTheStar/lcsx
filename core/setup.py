@@ -81,5 +81,7 @@ def setup_environment(config):
         f.write(f'\nexport PS1="{user}@{hostname}# "\n')
 
     # Save config after setup
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
     from config.config import save_config
-    save_config(config)
+    save_config(config, data_dir)
