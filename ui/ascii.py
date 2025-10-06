@@ -3,7 +3,7 @@ ASCII art display for LCSX.
 """
 
 def display_ascii():
-    """Display ASCII art for LCSX."""
+    """Display ASCII art."""
     art_lines = [
         "      __    ____________  __",
         "     / /   / ____/ ___/ |/ /",
