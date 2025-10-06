@@ -9,6 +9,7 @@ import urllib.request
 import subprocess
 import sys
 from lcsx.ui.logger import print_main, print_prompt
+from .auto import auto_setup
 
 def prompt_setup(pre_data_dir=None):
     """Prompt user for setup information."""
@@ -140,3 +141,5 @@ def prompt_setup(pre_data_dir=None):
         'sshx_path': sshx_path,
         'data_dir': data_dir
     }
+
+

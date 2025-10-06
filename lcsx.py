@@ -11,6 +11,7 @@ import sys
 from lcsx.core.proot import run_proot_command, start_proot_shell
 from lcsx.core.setup import setup_environment
 from lcsx.ui.cli import prompt_setup
+from lcsx.ui.auto import auto_setup
 from lcsx.ui.ascii import display_ascii
 from lcsx.config.config import load_config, save_config, is_configured
 from lcsx.ui.logger import print_main
@@ -27,37 +28,17 @@ def main():
 
     print_main("Welcome to LCSX setup.")
 
-    # Check for custom data directory argument
+    # Check for arguments
+    auto = False
     custom_data_dir = None
-    if len(sys.argv) > 1:
-        # Support --path or -p for custom path, and -a for absolute path flag
-        abs_path = False
-        path_arg = None
-        args = sys.argv[1:]
-        i = 0
-        while i < len(args):
-            arg = args[i]
-            if arg in ('-a', '--absolute'):
-                abs_path = True
-                i += 1
-            elif arg in ('-p', '--path'):
-                if i + 1 < len(args):
-                    path_arg = args[i + 1]
-                    i += 2
-                else:
-                    i += 1
-            else:
-                if path_arg is None:
-                    path_arg = arg
-                i += 1
-        if path_arg:
-            if abs_path:
-                custom_data_dir = os.path.abspath(path_arg)
-            else:
-                base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-                custom_data_dir = os.path.abspath(os.path.join(base_dir, path_arg))
-        if custom_data_dir:
-            print_main(f"Using custom data directory: {custom_data_dir}")
+    args = sys.argv[1:]
+    for arg in args:
+        if arg == '--auto':
+            auto = True
+        elif not custom_data_dir:
+            custom_data_dir = os.path.abspath(arg)
+    if custom_data_dir:
+        print_main(f"Using custom data directory: {custom_data_dir}")
 
     # Determine data directory
     data_dir = custom_data_dir if custom_data_dir else os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), 'data')
@@ -87,6 +68,23 @@ def main():
             with open(custom_config_file, 'w') as f:
                 json.dump(config, f, indent=4)
             print_main("Configuration migrated to custom data directory.")
+
+    # If auto flag is set, use auto_setup instead of prompt_setup
+    if auto:
+        if is_configured(data_dir):
+            config = load_config(data_dir, default_data_dir)
+            print_main(f"Configuration found. Starting LCSX for user '{config['user']}' on '{config['hostname']}'...")
+            start_proot_shell(config)
+        else:
+            print_main("No configuration found. Running automatic setup...")
+            config = auto_setup(pre_data_dir=custom_data_dir)
+            if custom_data_dir:
+                config['data_dir'] = custom_data_dir
+            setup_environment(config)
+            save_config(config, data_dir)
+            print_main("Automatic setup complete. Starting LCSX...")
+            start_proot_shell(config)
+        return
 
 
     # Check if configured

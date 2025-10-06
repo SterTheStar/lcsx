@@ -13,11 +13,14 @@ DESCRIPTION:
     and provides a shell interface.
 
 USAGE:
-    lcsx [PATH]
+    ./lcsx [OPTIONS] [PATH]
+
+OPTIONS:
+    --auto                  Run automatic setup without user prompts, using predefined values.
+    --help, -h              Display this help information.
 
 ARGUMENTS:
-    PATH                    The path to the data directory where LCSX will store downloaded files,
-                            configurations, and root filesystems. If not specified, defaults to
+    PATH                    The path to the custom data directory. If not specified, defaults to
                             './data' relative to the binary location.
                             
 LICENSE:

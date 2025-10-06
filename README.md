@@ -13,6 +13,7 @@ LCSX simplifies PRoot setup, managing root filesystems, configuration, and shell
 
 * Multi-architecture (x86-64, ARM64)
 * Interactive first-time setup
+* Automatic setup mode
 * Custom data directories
 * Automatic root filesystem setup
 * Supports static builds
@@ -44,12 +45,33 @@ python3 -m lcsx.lcsx
 # Run default
 python3 -m lcsx.lcsx
 
-# Custom data directory
-python3 -m lcsx.lcsx -p mydata
+# Automatic setup with custom data directory
+python3 -m lcsx.lcsx --auto /path/to/custom/data
+
+# Custom data directory (interactive setup)
+python3 -m lcsx.lcsx /path/to/custom/data
 
 # Show help
 python3 -m lcsx.lcsx --help
 ```
+
+### Arguments
+
+* `--auto`: Run automatic setup without user prompts, using predefined values.
+* `--help` or `-h`: Display help information.
+* `/path/to/custom/data`: Specify a custom data directory for configuration and files.
+
+### Automatic Setup
+
+When using `--auto`, LCSX uses the following default values:
+
+* Username: `lcsx`
+* Hostname: `debian`
+* Password: `123456`
+* Distribution: Debian (latest stable)
+* Architecture: Auto-detected (x86-64 or ARM64)
+* Data Directory: `/path/to/custom/data` (if provided) or `./data`
+* SSHX: Enabled
 
 ### First Run
 

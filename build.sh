@@ -1,17 +1,26 @@
 #!/bin/bash
 # Build script for LCSX using pyinstaller and staticx
 
+# Check if virtual environment exists
+if [ ! -d "venv" ]; then
+  echo "Virtual environment 'venv' not found. Please create it first."
+  exit 1
+fi
+
+# Activate virtual environment
+source venv/bin/activate
+
 # Clean previous builds
 rm -rf build dist lcsx.spec
 
 # Run pyinstaller to create executable
 pyinstaller --onefile --name lcsx \
   --paths . \
-  --add-data "lcsx/config:./lcsx/config" \
-  --add-data "lcsx/core:./lcsx/core" \
-  --add-data "lcsx/ui:./lcsx/ui" \
+  --add-data "config:config" \
+  --add-data "core:core" \
+  --add-data "ui:ui" \
   --hidden-import psutil \
-  lcsx/__main__.py
+  __main__.py
 
 # Check if pyinstaller succeeded
 if [ $? -ne 0 ]; then
