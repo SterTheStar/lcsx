@@ -45,11 +45,14 @@ python3 -m lcsx.lcsx
 # Run default
 python3 -m lcsx.lcsx
 
-# Automatic setup with custom data directory
-python3 -m lcsx.lcsx --auto /path/to/custom/data
+# Automatic setup
+python3 -m lcsx.lcsx --auto
 
 # Custom data directory (interactive setup)
 python3 -m lcsx.lcsx /path/to/custom/data
+
+# Automatic setup with custom data directory
+python3 -m lcsx.lcsx --auto /path/to/custom/data
 
 # Show help
 python3 -m lcsx.lcsx --help
