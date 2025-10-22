@@ -15,8 +15,22 @@ def is_configured(data_dir):
     try:
         with open(config_file, 'r') as f:
             config = json.load(f)
-        required = ['user', 'hostname', 'password', 'rootfs', 'arch', 'proot_bin', 'distro_url']
-        return all(key in config and config[key] for key in required)
+        
+        # Core required fields
+        core_required = ['user', 'hostname', 'password', 'rootfs', 'arch', 'proot_bin', 'distro_url', 'terminal_service']
+        if not all(key in config and config[key] for key in core_required):
+            return False
+
+        terminal_service = config.get('terminal_service')
+        if terminal_service == 'sshx':
+            return 'sshx_path' in config and config['sshx_path']
+        elif terminal_service == 'gotty':
+            return 'gotty_path' in config and config['gotty_path'] and 'terminal_port' in config and config['terminal_port']
+        elif terminal_service == 'native':
+            return True # No specific path/port needed for native
+        else:
+            return False # Unknown terminal service
+
     except (json.JSONDecodeError, KeyError):
         return False
 

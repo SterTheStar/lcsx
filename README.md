@@ -56,6 +56,18 @@ python3 -m lcsx.lcsx --auto /path/to/custom/data
 
 # Show help
 python3 -m lcsx.lcsx --help
+
+# Use sshx terminal service
+python3 -m lcsx.lcsx --sshx
+
+# Use gotty terminal service on default port (6040)
+python3 -m lcsx.lcsx --gotty
+
+# Use gotty terminal service on a custom port (e.g., 3000)
+python3 -m lcsx.lcsx --gotty --port 3000
+
+# Use native terminal service
+python3 -m lcsx.lcsx --native
 ```
 
 ### Arguments
@@ -63,10 +75,14 @@ python3 -m lcsx.lcsx --help
 * `--auto`: Run automatic setup without user prompts, using predefined values.
 * `--help` or `-h`: Display help information.
 * `/path/to/custom/data`: Specify a custom data directory for configuration and files.
+* `--gotty`: Use GoTTY as the terminal service. Can be combined with `--port` to specify the port.
+* `--sshx`: Use sshx as the terminal service.
+* `--native`: Use the native terminal service (no external terminal multiplexer).
+* `--port <number>`: Specify the port for GoTTY (default: 6040). Only applicable when `--gotty` is used.
 
 ### Automatic Setup
 
-When using `--auto`, LCSX uses the following default values:
+When using `--auto`, LCSX uses the following default values. Note that the terminal service can be overridden by `--gotty`, `--sshx`, or `--native` command-line arguments.
 
 * Username: `lcsx`
 * Hostname: `debian`
@@ -74,7 +90,7 @@ When using `--auto`, LCSX uses the following default values:
 * Distribution: Debian (latest stable)
 * Architecture: Auto-detected (x86-64 or ARM64)
 * Data Directory: `/path/to/custom/data` (if provided) or `./data`
-* SSHX: Enabled
+* Terminal Service: `sshx` (default, but can be overridden by command-line arguments)
 
 ### First Run
 

@@ -9,9 +9,11 @@ import urllib.request
 import subprocess
 import sys
 from lcsx.ui.logger import print_main, print_prompt
+from lcsx.core.gotty import setup_gotty # Import the new setup_gotty function
+from lcsx.core.sshx import setup_sshx # Import setup_sshx
 from .auto import auto_setup
 
-def prompt_setup(pre_data_dir=None):
+def prompt_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_native=False, force_port=6040):
     """Prompt user for setup information."""
     print_prompt("Enter username to create:")
     user = input().strip()
@@ -48,12 +50,8 @@ def prompt_setup(pre_data_dir=None):
     if arch in ('x86_64', 'aarch64'):
         if arch == 'x86_64':
             proot_bin = 'proot'
-            sshx_url = "https://sshx.s3.amazonaws.com/sshx-x86_64-unknown-linux-musl.tar.gz"
-            proot_url = "https://raw.githubusercontent.com/SterTheStar/lcsx/8d13901c99e8a222838999e11682ea0a7d797940/libs/proot"
         elif arch == 'aarch64':
             proot_bin = 'prootarm64'
-            sshx_url = "https://sshx.s3.amazonaws.com/sshx-aarch64-unknown-linux-musl.tar.gz"
-            proot_url = "https://raw.githubusercontent.com/SterTheStar/lcsx/8d13901c99e8a222838999e11682ea0a7d797940/libs/prootarm64"
 
         # Define available distros with compatibility levels
         distros = {
@@ -105,29 +103,49 @@ def prompt_setup(pre_data_dir=None):
         print(f"\033[1;91mUnsupported architecture: {arch}\033[0m")
         exit(1)
 
-    # Download proot binary if not exists
-    proot_dir = os.path.join(data_dir, 'libs')
-    os.makedirs(proot_dir, exist_ok=True)
-    proot_path = os.path.join(proot_dir, proot_bin)
-    if not os.path.exists(proot_path):
-        print_main(f"Downloading {proot_bin}...")
-        urllib.request.urlretrieve(proot_url, proot_path)
-        os.chmod(proot_path, 0o755)
-        print_main(f"{proot_bin} downloaded and set executable.")
-
-    print_prompt("Do you want to use sshx? (y/n):")
-    use_sshx = input().strip().lower() == 'y'
+    terminal_service = None
+    terminal_port = None
     sshx_path = None
-    if use_sshx:
-        print_main("Downloading sshx...")
-        sshx_dir = os.path.join(data_dir, 'libs', 'sshx')
-        os.makedirs(sshx_dir, exist_ok=True)
-        tar_path = os.path.join(sshx_dir, 'sshx.tar.gz')
-        urllib.request.urlretrieve(sshx_url, tar_path)
-        subprocess.run(['tar', '-xf', tar_path, '-C', sshx_dir], check=True)
-        os.remove(tar_path)
-        sshx_path = os.path.join(sshx_dir, 'sshx')
-        print_main("sshx downloaded and extracted.")
+    gotty_path = None
+
+    if force_gotty:
+        terminal_service = 'gotty'
+        terminal_port = force_port
+        print_main(f"Terminal service forced to gotty on port {terminal_port}.")
+        print_main("Setting up gotty...")
+        gotty_path = setup_gotty(data_dir)
+    elif force_sshx:
+        terminal_service = 'sshx'
+        terminal_port = None
+        print_main("Terminal service forced to sshx.")
+        print_main("Setting up sshx...")
+        sshx_path = setup_sshx(data_dir)
+    elif force_native:
+        terminal_service = 'native'
+        terminal_port = None
+        print_main("Terminal service forced to native.")
+    else:
+        print_prompt("Choose a terminal service: (1) sshx (2) gotty (3) native (default: 1):")
+        service_choice = input().strip()
+
+        if service_choice == '2':
+            terminal_service = 'gotty'
+            print_prompt("Enter the port for gotty (default: 6040):")
+            port_input = input().strip()
+            terminal_port = int(port_input) if port_input.isdigit() else 6040
+            print_main("Setting up gotty...")
+            gotty_path = setup_gotty(data_dir)
+        elif service_choice == '3':
+            terminal_service = 'native'
+            terminal_port = None
+            sshx_path = None
+            gotty_path = None
+            print_main("Using native terminal.")
+        else:
+            terminal_service = 'sshx'
+            terminal_port = None # sshx doesn't use a fixed port in this context
+            print_main("Setting up sshx...")
+            sshx_path = setup_sshx(data_dir)
 
     return {
         'user': user,
@@ -137,8 +155,10 @@ def prompt_setup(pre_data_dir=None):
         'arch': arch,
         'proot_bin': proot_bin,
         'distro_url': distro_url,
-        'use_sshx': use_sshx,
+        'terminal_service': terminal_service,
+        'terminal_port': terminal_port,
         'sshx_path': sshx_path,
+        'gotty_path': gotty_path, # Add gotty_path to config
         'data_dir': data_dir
     }
 

@@ -1,15 +1,12 @@
-"""
-Automatic setup for LCSX.
-Handles automatic setup with predefined values.
-"""
-
 import platform
 import os
 import urllib.request
 import subprocess
 from lcsx.ui.logger import print_main
+from lcsx.core.gotty import setup_gotty # Import setup_gotty for potential future use or consistency
+from lcsx.core.sshx import setup_sshx # Import setup_sshx
 
-def auto_setup(pre_data_dir=None):
+def auto_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_native=False, force_port=6040):
     """Automatic setup with predefined values."""
     user = 'lcsx'
     hostname = 'debian'
@@ -26,12 +23,8 @@ def auto_setup(pre_data_dir=None):
     if arch in ('x86_64', 'aarch64'):
         if arch == 'x86_64':
             proot_bin = 'proot'
-            sshx_url = "https://sshx.s3.amazonaws.com/sshx-x86_64-unknown-linux-musl.tar.gz"
-            proot_url = "https://raw.githubusercontent.com/SterTheStar/lcsx/8d13901c99e8a222838999e11682ea0a7d797940/libs/proot"
         elif arch == 'aarch64':
             proot_bin = 'prootarm64'
-            sshx_url = "https://sshx.s3.amazonaws.com/sshx-aarch64-unknown-linux-musl.tar.gz"
-            proot_url = "https://raw.githubusercontent.com/SterTheStar/lcsx/8d13901c99e8a222838999e11682ea0a7d797940/libs/prootarm64"
 
         # Select Debian
         distros = {
@@ -45,28 +38,33 @@ def auto_setup(pre_data_dir=None):
         print(f"\033[1;91mUnsupported architecture: {arch}\033[0m")
         exit(1)
 
-    # Download proot binary if not exists
-    proot_dir = os.path.join(data_dir, 'libs')
-    os.makedirs(proot_dir, exist_ok=True)
-    proot_path = os.path.join(proot_dir, proot_bin)
-    if not os.path.exists(proot_path):
-        print_main(f"Downloading {proot_bin}...")
-        urllib.request.urlretrieve(proot_url, proot_path)
-        os.chmod(proot_path, 0o755)
-        print_main(f"{proot_bin} downloaded and set executable.")
-
-    # Use sshx
-    use_sshx = True
+    terminal_service = None
+    terminal_port = None
     sshx_path = None
-    print_main("Downloading sshx...")
-    sshx_dir = os.path.join(data_dir, 'libs', 'sshx')
-    os.makedirs(sshx_dir, exist_ok=True)
-    tar_path = os.path.join(sshx_dir, 'sshx.tar.gz')
-    urllib.request.urlretrieve(sshx_url, tar_path)
-    subprocess.run(['tar', '-xf', tar_path, '-C', sshx_dir], check=True)
-    os.remove(tar_path)
-    sshx_path = os.path.join(sshx_dir, 'sshx')
-    print_main("sshx downloaded and extracted.")
+    gotty_path = None # Initialize gotty_path
+
+    if force_gotty:
+        terminal_service = 'gotty'
+        terminal_port = force_port
+        print_main(f"Terminal service forced to gotty on port {terminal_port}.")
+        print_main("Setting up gotty...")
+        gotty_path = setup_gotty(data_dir)
+    elif force_sshx:
+        terminal_service = 'sshx'
+        terminal_port = None
+        print_main("Terminal service forced to sshx.")
+        print_main("Setting up sshx...")
+        sshx_path = setup_sshx(data_dir)
+    elif force_native:
+        terminal_service = 'native'
+        terminal_port = None
+        print_main("Terminal service forced to native.")
+    else:
+        # Default to sshx for auto setup if no force flag is provided
+        terminal_service = 'sshx'
+        terminal_port = None
+        print_main("Setting up sshx...")
+        sshx_path = setup_sshx(data_dir)
 
     return {
         'user': user,
@@ -76,7 +74,9 @@ def auto_setup(pre_data_dir=None):
         'arch': arch,
         'proot_bin': proot_bin,
         'distro_url': distro_url,
-        'use_sshx': use_sshx,
+        'terminal_service': terminal_service,
+        'terminal_port': terminal_port,
         'sshx_path': sshx_path,
+        'gotty_path': gotty_path,
         'data_dir': data_dir
     }
