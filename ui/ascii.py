@@ -11,7 +11,7 @@ def display_ascii():
         "   / /___/ /___ ___/ /   |",
         "  /_____/\\____//____/_/|_|",
         "",
-        "   \033[1;92m[x86-64]\033[0m \033[1;94m[ARM64]\033[0m \033[1;93m[GPL-3.0]\033[0m \033[1;95m[v1.0.2]\033[0m",
+        "   \033[1;92m[x86-64]\033[0m \033[1;94m[ARM64]\033[0m \033[1;93m[GPL-3.0]\033[0m \033[1;95m[v1.0.2]\033[0m \033[1;36m[Flow]\033[0m",
         "   \033[1;96m[github.com/SterTheStar/lcsx]\033[0m",
         ""
     ]
@@ -25,8 +25,9 @@ def display_ascii():
         "\033[95m",  # Magenta
         "\033[0m",   # Reset for empty line
         "\033[0m",   # Reset for badges line
-        "\033[0m",   # Reset for empty line
-        "\033[0m"    # Reset for github line
+        "\033[0m",   # Reset for github line
+        "\033[0m",   # Reset for codename line
+        "\033[0m"    # Reset for empty line
     ]
 
     for i, line in enumerate(art_lines):
