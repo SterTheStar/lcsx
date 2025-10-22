@@ -103,6 +103,8 @@ LCSX will guide you to configure:
 ## Building
 
 ```bash
+python -m venv venv
+source venv/bin/activate
 pip install pyinstaller staticx psutil
 ./build.sh
 ```
