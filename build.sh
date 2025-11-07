@@ -1,14 +1,11 @@
 #!/bin/bash
-# Build script for LCSX using pyinstaller and staticx
+# Build script for LCSX using pyinstaller and staticx (no venv)
 
-# Check if virtual environment exists
-if [ ! -d "venv" ]; then
-  echo "Virtual environment 'venv' not found. Please create it first."
+# Check if pyinstaller is installed
+if ! command -v pyinstaller >/dev/null 2>&1; then
+  echo "PyInstaller not found. Please install it first (pip install pyinstaller)."
   exit 1
 fi
-
-# Activate virtual environment
-source venv/bin/activate
 
 # Clean previous builds
 rm -rf build dist lcsx.spec
@@ -28,7 +25,7 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-# Use staticx to create a static binary
+# Use staticx to create a static binary if available
 if command -v staticx >/dev/null 2>&1; then
   staticx dist/lcsx dist/lcsx-static
   if [ $? -eq 0 ]; then

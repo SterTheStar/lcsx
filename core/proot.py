@@ -66,7 +66,7 @@ def start_proot_shell(config):
     disk_total = psutil.disk_usage('/').total
 
     proot_path = get_proot_path(data_dir, proot_bin)
-    cmd = [proot_path, '-r', rootfs, '-0', '-w', '/']
+    cmd = [proot_path, '-r', rootfs, '-0', '-w', '/root']
 
     # Mount /proc from host to fix /proc/stat parsing error
     cmd.extend(['-b', '/proc:/proc'])
@@ -94,7 +94,8 @@ def start_proot_shell(config):
     env_vars = [
         f'CPU_COUNT={cpu_count}',
         f'RAM_TOTAL={ram_total}',
-        f'DISK_TOTAL={disk_total}'
+        f'DISK_TOTAL={disk_total}',
+        'HOME=/root'
     ]
     # Prepend env vars to command
     env_command = ['env'] + env_vars + command
