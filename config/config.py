@@ -5,6 +5,7 @@ Handles loading, saving, and checking configuration.
 
 import json
 import os
+import shutil
 import sys
 
 def is_configured(data_dir):
@@ -37,8 +38,15 @@ def is_configured(data_dir):
 def load_config(data_dir, default_data_dir):
     """Load the configuration from file."""
     config_file = os.path.join(data_dir, 'config.json')
-    with open(config_file, 'r') as f:
-        config = json.load(f)
+    try:
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Configuration file not found: {config_file}")
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in configuration file: {e}")
+    except PermissionError as e:
+        raise PermissionError(f"Permission denied reading configuration file: {e}")
     # Ensure data_dir is set
     config['data_dir'] = data_dir
     # Update proot_bin if it was in the default data dir
@@ -48,13 +56,17 @@ def load_config(data_dir, default_data_dir):
         # Copy the proot binary if it exists at old location but not at new
         if os.path.exists(old_proot_bin) and not os.path.exists(config['proot_bin']):
             os.makedirs(os.path.dirname(config['proot_bin']), exist_ok=True)
-            import shutil
             shutil.copy2(old_proot_bin, config['proot_bin'])
     return config
 
 def save_config(config, data_dir):
     """Save the configuration to file."""
-    os.makedirs(data_dir, exist_ok=True)
-    config_file = os.path.join(data_dir, 'config.json')
-    with open(config_file, 'w') as f:
-        json.dump(config, f, indent=4)
+    try:
+        os.makedirs(data_dir, exist_ok=True)
+        config_file = os.path.join(data_dir, 'config.json')
+        with open(config_file, 'w') as f:
+            json.dump(config, f, indent=4)
+    except PermissionError as e:
+        raise PermissionError(f"Permission denied writing configuration file: {e}")
+    except OSError as e:
+        raise OSError(f"Failed to save configuration: {e}")

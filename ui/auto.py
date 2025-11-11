@@ -3,14 +3,20 @@ import os
 import urllib.request
 import subprocess
 from lcsx.ui.logger import print_main
-from lcsx.core.gotty import setup_gotty # Import setup_gotty for potential future use or consistency
-from lcsx.core.sshx import setup_sshx # Import setup_sshx
+from lcsx.core.gotty import setup_gotty
+from lcsx.core.sshx import setup_sshx
+from lcsx.config.constants import (
+    DEFAULT_USER, DEFAULT_HOSTNAME, DEFAULT_PASSWORD,
+    DEFAULT_PORT, PROOT_DISTRO_VERSION, PROOT_DISTRO_BASE_URL
+)
 
-def auto_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_native=False, force_port=6040):
+def auto_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_native=False, force_port=None):
     """Automatic setup with predefined values."""
-    user = 'lcsx'
-    hostname = 'debian'
-    password = '123456'
+    user = DEFAULT_USER
+    hostname = DEFAULT_HOSTNAME
+    password = DEFAULT_PASSWORD
+    if force_port is None:
+        force_port = DEFAULT_PORT
 
     # Set data directory
     base_dir = os.path.dirname(os.path.abspath(__import__('sys').argv[0]))
@@ -27,13 +33,7 @@ def auto_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_nat
             proot_bin = 'prootarm64'
 
         # Select Debian
-        distros = {
-            'Debian': {
-                'url': f"https://github.com/termux/proot-distro/releases/download/v4.29.0/debian-trixie-{arch}-pd-v4.29.0.tar.xz",
-                'compat': 'Stable'
-            },
-        }
-        distro_url = distros['Debian']['url']
+        distro_url = f"{PROOT_DISTRO_BASE_URL}/debian-trixie-{arch}-pd-{PROOT_DISTRO_VERSION}.tar.xz"
     else:
         print(f"\033[1;91mUnsupported architecture: {arch}\033[0m")
         exit(1)

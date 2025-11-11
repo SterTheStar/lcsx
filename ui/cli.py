@@ -9,11 +9,14 @@ import urllib.request
 import subprocess
 import sys
 from lcsx.ui.logger import print_main, print_prompt
-from lcsx.core.gotty import setup_gotty # Import the new setup_gotty function
-from lcsx.core.sshx import setup_sshx # Import setup_sshx
+from lcsx.core.gotty import setup_gotty
+from lcsx.core.sshx import setup_sshx
 from .auto import auto_setup
+from lcsx.config.constants import (
+    DEFAULT_PORT, PROOT_DISTRO_VERSION, PROOT_DISTRO_BASE_URL
+)
 
-def prompt_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_native=False, force_port=6040):
+def prompt_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_native=False, force_port=None):
     """Prompt user for setup information."""
     print_prompt("Enter username to create:")
     user = input().strip()
@@ -56,15 +59,15 @@ def prompt_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_n
         # Define available distros with compatibility levels
         distros = {
             'Debian': {
-                'url': f"https://github.com/termux/proot-distro/releases/download/v4.29.0/debian-trixie-{arch}-pd-v4.29.0.tar.xz",
+                'url': f"{PROOT_DISTRO_BASE_URL}/debian-trixie-{arch}-pd-{PROOT_DISTRO_VERSION}.tar.xz",
                 'compat': 'Stable'
             },
             'Arch Linux': {
-                'url': f"https://github.com/termux/proot-distro/releases/download/v4.29.0/archlinux-{arch}-pd-v4.29.0.tar.xz",
+                'url': f"{PROOT_DISTRO_BASE_URL}/archlinux-{arch}-pd-{PROOT_DISTRO_VERSION}.tar.xz",
                 'compat': 'Bleeding'
             },
             'Void': {
-                'url': f"https://github.com/termux/proot-distro/releases/download/v4.29.0/void-{arch}-pd-v4.29.0.tar.xz",
+                'url': f"{PROOT_DISTRO_BASE_URL}/void-{arch}-pd-{PROOT_DISTRO_VERSION}.tar.xz",
                 'compat': 'Balanced'
             },
         }
@@ -130,9 +133,12 @@ def prompt_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_n
 
         if service_choice == '2':
             terminal_service = 'gotty'
-            print_prompt("Enter the port for gotty (default: 6040):")
-            port_input = input().strip()
-            terminal_port = int(port_input) if port_input.isdigit() else 6040
+            if force_port is None:
+                print_prompt(f"Enter the port for gotty (default: {DEFAULT_PORT}):")
+                port_input = input().strip()
+                terminal_port = int(port_input) if port_input.isdigit() else DEFAULT_PORT
+            else:
+                terminal_port = force_port
             print_main("Setting up gotty...")
             gotty_path = setup_gotty(data_dir)
         elif service_choice == '3':

@@ -2,9 +2,15 @@ import subprocess
 import os
 import sys
 import urllib.request
+import urllib.error
 import platform
-from lcsx.ui.logger import print_main
-from lcsx.core.gotty import run_gotty # Import run_gotty - ensure this is correctly loaded
+import time
+from lcsx.ui.logger import print_main, print_error
+from lcsx.core.gotty import run_gotty
+from lcsx.config.constants import (
+    PROOT_X86_64_URL, PROOT_ARM64_URL, PROOT_PERMISSIONS,
+    DOWNLOAD_TIMEOUT, MAX_DOWNLOAD_RETRIES, RETRY_DELAY
+)
 
 def get_proot_path(data_dir, proot_bin):
     """Get the path to the proot binary."""
@@ -19,18 +25,29 @@ def setup_proot_binary(data_dir, proot_bin):
     if not os.path.exists(proot_path):
         print_main(f"Proot binary '{proot_bin}' not found. Downloading again...")
         arch = platform.machine()
-        proot_url = ""
         if arch == 'x86_64':
-            proot_url = "https://raw.githubusercontent.com/SterTheStar/lcsx/8d13901c99e8a222838999e11682ea0a7d797940/libs/proot"
+            proot_url = PROOT_X86_64_URL
         elif arch == 'aarch64':
-            proot_url = "https://raw.githubusercontent.com/SterTheStar/lcsx/8d13901c99e8a222838999e11682ea0a7d797940/libs/prootarm64"
+            proot_url = PROOT_ARM64_URL
         else:
             raise Exception(f"Unsupported architecture for proot: {arch}")
 
         print_main(f"Downloading {proot_bin}...")
-        urllib.request.urlretrieve(proot_url, proot_path)
-        os.chmod(proot_path, 0o755)
-        print_main(f"{proot_bin} downloaded and set executable.")
+        # Retry logic for downloads
+        for attempt in range(MAX_DOWNLOAD_RETRIES):
+            try:
+                urllib.request.urlretrieve(proot_url, proot_path)
+                os.chmod(proot_path, PROOT_PERMISSIONS)
+                print_main(f"{proot_bin} downloaded and set executable.")
+                break
+            except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
+                if attempt < MAX_DOWNLOAD_RETRIES - 1:
+                    print_error(f"Download failed (attempt {attempt + 1}/{MAX_DOWNLOAD_RETRIES}): {e}")
+                    print_main(f"Retrying in {RETRY_DELAY} seconds...")
+                    time.sleep(RETRY_DELAY)
+                else:
+                    print_error(f"Failed to download {proot_bin} after {MAX_DOWNLOAD_RETRIES} attempts: {e}")
+                    raise
     return proot_path
 
 def run_proot_command(data_dir, rootfs, command, input=None, capture_output=False, proot_bin='proot'):
@@ -44,7 +61,7 @@ def run_proot_command(data_dir, rootfs, command, input=None, capture_output=Fals
     return subprocess.run(cmd, input=input, capture_output=capture_output, text=True)
 
 import psutil
-import os
+from lcsx.config.constants import DEFAULT_SHELL
 
 def start_proot_shell(config):
     """Start the proot shell with the configured prompt or sshx/gotty."""
@@ -57,7 +74,7 @@ def start_proot_shell(config):
     terminal_port = config.get('terminal_port')
     sshx_path = config.get('sshx_path')
     gotty_path = config.get('gotty_path')
-    shell = config.get('shell', '/bin/bash')
+    shell = config.get('shell', DEFAULT_SHELL)
     print_main(f"Starting proot shell as '{user}@{hostname}' using shell '{shell}'...")
 
     # Collect system info

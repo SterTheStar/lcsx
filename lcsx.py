@@ -6,11 +6,20 @@ Main entry point for the LCSX tool.
 
 import json
 import os
+import shutil
 import sys
 import argparse
 import platform
 import urllib.request
 import subprocess
+
+# Add parent directory to path when running directly (before imports)
+# This allows the script to be run as: python lcsx.py
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(script_dir)
+# Add parent directory so 'lcsx' package can be found
+if parent_dir and parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
 
 from lcsx.core.proot import run_proot_command, start_proot_shell, setup_proot_binary
 from lcsx.core.setup import setup_environment
@@ -20,7 +29,8 @@ from lcsx.ui.ascii import display_ascii
 from lcsx.config.config import load_config, save_config, is_configured
 from lcsx.ui.logger import print_main
 from lcsx.core.gotty import setup_gotty
-from lcsx.core.sshx import setup_sshx # Import the new setup_sshx function
+from lcsx.core.sshx import setup_sshx
+from lcsx.config.constants import DEFAULT_PORT
 
 def setup_terminal_service(config, data_dir, service, port=None):
     """Sets up the chosen terminal service and updates the config."""
@@ -48,13 +58,13 @@ def main():
     parser.add_argument('--gotty', action='store_true', help="Use gotty as the terminal service")
     parser.add_argument('--sshx', action='store_true', help="Use sshx as the terminal service")
     parser.add_argument('--native', action='store_true', help="Use native terminal service")
-    parser.add_argument('--port', type=int, default=6040, help="Port for gotty (default: 6040). Only applicable with --gotty.")
+    parser.add_argument('--port', type=int, default=DEFAULT_PORT, help=f"Port for gotty (default: {DEFAULT_PORT}). Only applicable with --gotty.")
     parser.add_argument('data_dir', nargs='?', help="Custom data directory")
 
     args = parser.parse_args()
 
     # Validate --port usage
-    if args.port != 6040 and not args.gotty:
+    if args.port != DEFAULT_PORT and not args.gotty:
         print_main("Error: --port can only be used with --gotty.")
         sys.exit(1)
 
@@ -79,7 +89,6 @@ def main():
         if os.path.exists(default_config_file):
             custom_config_file = os.path.join(custom_data_dir, 'config.json')
             os.makedirs(custom_data_dir, exist_ok=True)
-            import shutil
             shutil.copy(default_config_file, custom_config_file)
             with open(custom_config_file, 'r') as f:
                 config = json.load(f)
@@ -91,7 +100,6 @@ def main():
                 # Copy the proot binary to the new location
                 if os.path.exists(old_proot_bin):
                     os.makedirs(os.path.dirname(config['proot_bin']), exist_ok=True)
-                    import shutil
                     shutil.copy2(old_proot_bin, config['proot_bin'])
             with open(custom_config_file, 'w') as f:
                 json.dump(config, f, indent=4)

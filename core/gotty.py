@@ -1,32 +1,51 @@
 import os
 import urllib.request
+import urllib.error
 import tarfile
 import subprocess
 import platform
-from lcsx.ui.logger import print_main
-
-GOTTY_URL_BASE = "https://github.com/yudai/gotty/releases/download/v1.0.1/"
+import time
+from lcsx.ui.logger import print_main, print_error
+from lcsx.config.constants import (
+    GOTTY_BASE_URL, PROOT_PERMISSIONS,
+    MAX_DOWNLOAD_RETRIES, RETRY_DELAY
+)
 
 def get_gotty_url():
     """Determines the correct gotty download URL based on architecture."""
     arch = platform.machine()
     if arch == 'x86_64':
-        return f"{GOTTY_URL_BASE}gotty_linux_amd64.tar.gz"
+        return f"{GOTTY_BASE_URL}/gotty_linux_amd64.tar.gz"
     elif arch == 'aarch64':
         # Assuming aarch64 for ARM, adjust if gotty uses a different naming convention
-        return f"{GOTTY_URL_BASE}gotty_linux_arm64.tar.gz" # This might need to be confirmed
+        return f"{GOTTY_BASE_URL}/gotty_linux_arm64.tar.gz"
     else:
         raise Exception(f"Unsupported architecture for gotty: {arch}")
 
 def download_gotty(data_dir):
-    """Downloads the gotty tarball."""
+    """Downloads the gotty tarball with retry logic."""
     gotty_url = get_gotty_url()
     gotty_dir = os.path.join(data_dir, 'libs', 'gotty')
     os.makedirs(gotty_dir, exist_ok=True)
     tar_path = os.path.join(gotty_dir, 'gotty.tar.gz')
     
-    urllib.request.urlretrieve(gotty_url, tar_path)
-    return tar_path, gotty_dir
+    # Retry logic for downloads
+    for attempt in range(MAX_DOWNLOAD_RETRIES):
+        try:
+            urllib.request.urlretrieve(gotty_url, tar_path)
+            return tar_path, gotty_dir
+        except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
+            if attempt < MAX_DOWNLOAD_RETRIES - 1:
+                print_error(f"Download failed (attempt {attempt + 1}/{MAX_DOWNLOAD_RETRIES}): {e}")
+                print_main(f"Retrying in {RETRY_DELAY} seconds...")
+                if os.path.exists(tar_path):
+                    os.remove(tar_path)
+                time.sleep(RETRY_DELAY)
+            else:
+                print_error(f"Failed to download gotty after {MAX_DOWNLOAD_RETRIES} attempts: {e}")
+                if os.path.exists(tar_path):
+                    os.remove(tar_path)
+                raise
 
 def extract_gotty(tar_path, gotty_dir):
     """Extracts the gotty tarball."""
@@ -55,7 +74,7 @@ def setup_gotty(data_dir):
         if not gotty_path:
             raise Exception("Could not find 'gotty' binary after extraction.")
     
-    os.chmod(gotty_path, 0o755)
+    os.chmod(gotty_path, PROOT_PERMISSIONS)
     return gotty_path
 
 def run_gotty(gotty_path, port, command):
