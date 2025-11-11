@@ -77,11 +77,29 @@ def setup_gotty(data_dir):
     os.chmod(gotty_path, PROOT_PERMISSIONS)
     return gotty_path
 
-def run_gotty(gotty_path, port, command):
-    """Runs the gotty server."""
-    # gotty -a 0.0.0.0 -p 25656 -w bash
-    # The command will be passed as a list of arguments to gotty
-    gotty_cmd = [gotty_path, '-a', '0.0.0.0', '-p', str(port), '-w', 'bash', '-c', command]
+def run_gotty(gotty_path, port, command, credential=None):
+    """
+    Runs the gotty server.
+    
+    Args:
+        gotty_path: Path to gotty binary
+        port: Port number
+        command: Command to run
+        credential: Basic auth credential in format 'user:pass' (optional)
+    
+    Returns:
+        List of command arguments for gotty
+    """
+    # gotty -a 0.0.0.0 -p 25656 --credential "user:pass" -w bash -c "command"
+    # Note: --credential must come before -w and -c
+    gotty_cmd = [gotty_path, '-a', '0.0.0.0', '-p', str(port)]
+    
+    # Add credential if provided (must be before -w and -c)
+    if credential:
+        gotty_cmd.extend(['--credential', credential])
+    
+    # Add -w and -c after credential
+    gotty_cmd.extend(['-w', 'bash', '-c', command])
     
     # This will be run by proot, so we just return the command to be executed by proot
     return gotty_cmd

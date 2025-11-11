@@ -12,8 +12,9 @@ import sys
 import time
 from lcsx.core.proot import run_proot_command
 from lcsx.core.resolv import set_resolv_conf
-from lcsx.ui.logger import print_main as print_normal, print_error, download_progress
+from lcsx.ui.logger import print_main as print_normal, print_error, print_warning, download_progress
 from lcsx.config.constants import MAX_DOWNLOAD_RETRIES, RETRY_DELAY
+from lcsx.core.validation import check_disk_space
 
 def is_rootfs_valid(rootfs_path):
     """Check if the rootfs is valid by checking for /bin/bash."""
@@ -23,6 +24,17 @@ def download_and_extract(url, dest_dir):
     """Download and extract the rootfs tar.xz, return the rootfs path."""
     os.makedirs(dest_dir, exist_ok=True)
     tar_path = os.path.join(dest_dir, 'rootfs.tar.xz')
+    
+    # Estimate required space (typically rootfs is 100-500MB compressed, 1-3GB extracted)
+    # We'll check for at least 1GB to be safe
+    required_space = 1 * 1024 * 1024 * 1024  # 1 GB
+    has_space, available, error_msg = check_disk_space(dest_dir, required_space)
+    if not has_space:
+        print_warning(error_msg)
+        print_warning("Proceeding anyway, but download may fail if space is insufficient.")
+    else:
+        print_normal(f"Disk space check passed. Available: {available / (1024**3):.2f} GB")
+    
     print_normal("Downloading rootfs...")
     # Retry logic for downloads
     for attempt in range(MAX_DOWNLOAD_RETRIES):

@@ -100,8 +100,10 @@ def start_proot_shell(config):
         cmd.extend(['-b', f'{abs_gotty_dir}:/gotty'])
         # Mount pseudo-terminals for gotty compatibility
         cmd.extend(['-b', '/dev/ptmx:/dev/ptmx', '-b', '/dev/pts:/dev/pts', '-b', '/dev/tty:/dev/tty'])
+        # Get gotty credential from config if available
+        gotty_credential = config.get('gotty_credential')
         # Construct the gotty command to run inside proot
-        command = run_gotty(f'/gotty/{os.path.basename(gotty_path)}', terminal_port, f'export PS1="{user}@{hostname}# "; exec {shell}')
+        command = run_gotty(f'/gotty/{os.path.basename(gotty_path)}', terminal_port, f'export PS1="{user}@{hostname}# "; exec {shell}', credential=gotty_credential)
     elif terminal_service == 'native':
         command = [shell, '-c', f'export PS1="{user}@{hostname}# "; exec {shell}']
     else:

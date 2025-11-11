@@ -27,12 +27,14 @@ from lcsx.ui.cli import prompt_setup
 from lcsx.ui.auto import auto_setup
 from lcsx.ui.ascii import display_ascii
 from lcsx.config.config import load_config, save_config, is_configured
-from lcsx.ui.logger import print_main
+from lcsx.ui.logger import print_main, print_prompt, print_error
 from lcsx.core.gotty import setup_gotty
 from lcsx.core.sshx import setup_sshx
 from lcsx.config.constants import DEFAULT_PORT
+from lcsx.core.logger import setup_logger
+import logging
 
-def setup_terminal_service(config, data_dir, service, port=None):
+def setup_terminal_service(config, data_dir, service, port=None, credential=None, enable_auth=None):
     """Sets up the chosen terminal service and updates the config."""
     config['terminal_service'] = service
     config['terminal_port'] = port
@@ -46,6 +48,46 @@ def setup_terminal_service(config, data_dir, service, port=None):
     elif service == 'gotty':
         print_main("Setting up gotty...")
         config['gotty_path'] = setup_gotty(data_dir)
+        # Set credential if provided via CLI
+        if credential:
+            config['gotty_credential'] = credential
+            print_main("Gotty credential configured from command line.")
+        # If enable_auth is provided via --credential yes/no, use it
+        elif enable_auth is not None:
+            if enable_auth:
+                # Use system username and password
+                system_user = config.get('user')
+                system_password = config.get('password')
+                if system_user and system_password:
+                    config['gotty_credential'] = f"{system_user}:{system_password}"
+                    print_main(f"GoTTY will use system credentials ({system_user}:****) for Basic Authentication.")
+                else:
+                    config['gotty_credential'] = None
+                    print_warning("System credentials not found. GoTTY will run without authentication.")
+            else:
+                config['gotty_credential'] = None
+                print_main("GoTTY will run without authentication.")
+        # If credential not in config (first time using gotty), ask user
+        elif 'gotty_credential' not in config or config.get('gotty_credential') is None:
+            # Ask if user wants to enable Basic Authentication
+            print_prompt("Do you want to enable Basic Authentication for gotty? (y/n, default: n):")
+            user_enable_auth = input().strip().lower()
+            if user_enable_auth == 'y':
+                # Use system username and password if available
+                system_user = config.get('user')
+                system_password = config.get('password')
+                if system_user and system_password:
+                    config['gotty_credential'] = f"{system_user}:{system_password}"
+                    print_main(f"GoTTY will use system credentials ({system_user}:****) for Basic Authentication.")
+                else:
+                    config['gotty_credential'] = None
+                    print_warning("System credentials not found. GoTTY will run without authentication.")
+            else:
+                config['gotty_credential'] = None
+                print_main("GoTTY will run without authentication.")
+        # If credential already exists in config, keep it (don't override)
+        else:
+            print_main(f"GoTTY will use existing credentials ({config.get('user', 'user')}:****) for Basic Authentication.")
         print_main("Gotty setup complete.")
     elif service == 'native':
         print_main("Using native terminal.")
@@ -59,13 +101,31 @@ def main():
     parser.add_argument('--sshx', action='store_true', help="Use sshx as the terminal service")
     parser.add_argument('--native', action='store_true', help="Use native terminal service")
     parser.add_argument('--port', type=int, default=DEFAULT_PORT, help=f"Port for gotty (default: {DEFAULT_PORT}). Only applicable with --gotty.")
+    parser.add_argument('--gotty-credential', help="Basic auth credential for gotty in format 'user:pass'. Only applicable with --gotty.")
+    parser.add_argument('--credential', choices=['yes', 'no'], help="Enable/disable Basic Authentication for gotty using system credentials (yes/no). Only applicable with --gotty.")
+    parser.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], default='INFO', help="Set logging level (default: INFO)")
+    parser.add_argument('--log-file', help="Path to log file (default: ~/.lcsx/logs/lcsx.log)")
     parser.add_argument('data_dir', nargs='?', help="Custom data directory")
 
     args = parser.parse_args()
+    
+    # Setup logging (console disabled to avoid duplicate output with formatted prints)
+    log_level = getattr(logging, args.log_level.upper(), logging.INFO)
+    setup_logger(log_level=log_level, log_file=args.log_file, enable_console=False)
 
     # Validate --port usage
     if args.port != DEFAULT_PORT and not args.gotty:
         print_main("Error: --port can only be used with --gotty.")
+        sys.exit(1)
+    
+    # Validate --gotty-credential usage
+    if args.gotty_credential and not args.gotty:
+        print_main("Error: --gotty-credential can only be used with --gotty.")
+        sys.exit(1)
+    
+    # Validate --credential usage
+    if args.credential and not args.gotty:
+        print_main("Error: --credential can only be used with --gotty.")
         sys.exit(1)
 
     # Display ASCII art
@@ -120,7 +180,26 @@ def main():
 
     # If a terminal service is forced and config exists, update it
     if forced_terminal_service and config:
-        config = setup_terminal_service(config, data_dir, forced_terminal_service, args.port)
+        # Validate gotty credential format if provided
+        gotty_credential = None
+        enable_auth = None
+        
+        if args.gotty_credential:
+            if ':' in args.gotty_credential and args.gotty_credential.count(':') == 1:
+                parts = args.gotty_credential.split(':')
+                if parts[0] and parts[1]:
+                    gotty_credential = args.gotty_credential
+                else:
+                    print_main("Error: Both username and password are required for --gotty-credential.")
+                    sys.exit(1)
+            else:
+                print_main("Error: Invalid format for --gotty-credential. Use 'username:password'.")
+                sys.exit(1)
+        elif args.credential:
+            # --credential yes/no to use system credentials
+            enable_auth = args.credential.lower() == 'yes'
+        
+        config = setup_terminal_service(config, data_dir, forced_terminal_service, args.port, credential=gotty_credential, enable_auth=enable_auth)
         save_config(config, data_dir)
         print_main(f"Terminal service updated to {forced_terminal_service}.")
 
@@ -135,7 +214,11 @@ def main():
             start_proot_shell(config)
         else:
             print_main("No configuration found. Running automatic setup...")
-            config = auto_setup(pre_data_dir=custom_data_dir, force_gotty=args.gotty, force_sshx=args.sshx, force_native=args.native, force_port=args.port)
+            # Determine enable_auth from --credential argument
+            enable_auth = None
+            if args.credential:
+                enable_auth = args.credential.lower() == 'yes'
+            config = auto_setup(pre_data_dir=custom_data_dir, force_gotty=args.gotty, force_sshx=args.sshx, force_native=args.native, force_port=args.port, enable_auth=enable_auth)
             if custom_data_dir:
                 config['data_dir'] = custom_data_dir
             setup_environment(config)
@@ -152,7 +235,11 @@ def main():
         start_proot_shell(config)
     else:
         print_main("No configuration found. Setting up LCSX...")
-        config = prompt_setup(pre_data_dir=custom_data_dir, force_gotty=args.gotty, force_sshx=args.sshx, force_native=args.native, force_port=args.port)
+        # Determine enable_auth from --credential argument
+        enable_auth = None
+        if args.credential:
+            enable_auth = args.credential.lower() == 'yes'
+        config = prompt_setup(pre_data_dir=custom_data_dir, force_gotty=args.gotty, force_sshx=args.sshx, force_native=args.native, force_port=args.port, enable_auth=enable_auth)
         if custom_data_dir:
             config['data_dir'] = custom_data_dir
         setup_environment(config)
