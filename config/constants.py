@@ -25,6 +25,10 @@ PROOT_ARM64_URL = f"{PROOT_BASE_URL}/prootarm64"
 PROOT_DISTRO_VERSION = "v4.29.0"
 PROOT_DISTRO_BASE_URL = f"https://github.com/termux/proot-distro/releases/download/{PROOT_DISTRO_VERSION}"
 
+# Alpine specific version
+ALPINE_DISTRO_VERSION = "v4.30.1"
+ALPINE_DISTRO_BASE_URL = f"https://github.com/termux/proot-distro/releases/download/{ALPINE_DISTRO_VERSION}"
+
 # GoTTY version and URL
 GOTTY_VERSION = "v1.0.1"
 GOTTY_BASE_URL = f"https://github.com/yudai/gotty/releases/download/{GOTTY_VERSION}"

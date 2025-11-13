@@ -10,7 +10,7 @@ from lcsx.config.constants import (
     DEFAULT_PORT, PROOT_DISTRO_VERSION, PROOT_DISTRO_BASE_URL
 )
 
-def auto_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_native=False, force_port=None):
+def auto_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_native=False, force_port=None, enable_auth=None):
     """Automatic setup with predefined values."""
     user = DEFAULT_USER
     hostname = DEFAULT_HOSTNAME
@@ -47,6 +47,18 @@ def auto_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_nat
         terminal_service = 'gotty'
         terminal_port = force_port
         print_main(f"Terminal service forced to gotty on port {terminal_port}.")
+        # Check if enable_auth was provided via --credential argument
+        if enable_auth is not None:
+            if enable_auth:
+                gotty_credential = f"{user}:{password}"
+                print_main(f"GoTTY will use system credentials ({user}:****) for Basic Authentication.")
+            else:
+                gotty_credential = None
+                print_main("GoTTY will run without authentication.")
+        else:
+            # Auto setup: authentication disabled by default
+            gotty_credential = None
+            print_main("GoTTY will run without authentication.")
         print_main("Setting up gotty...")
         gotty_path = setup_gotty(data_dir)
     elif force_sshx:
@@ -78,5 +90,6 @@ def auto_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_nat
         'terminal_port': terminal_port,
         'sshx_path': sshx_path,
         'gotty_path': gotty_path,
+        'gotty_credential': gotty_credential if 'gotty_credential' in locals() else None,
         'data_dir': data_dir
     }

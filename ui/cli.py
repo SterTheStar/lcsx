@@ -8,41 +8,80 @@ import os
 import urllib.request
 import subprocess
 import sys
-from lcsx.ui.logger import print_main, print_prompt
+from lcsx.ui.logger import print_main, print_prompt, print_error, print_warning
 from lcsx.core.gotty import setup_gotty
 from lcsx.core.sshx import setup_sshx
 from .auto import auto_setup
 from lcsx.config.constants import (
-    DEFAULT_PORT, PROOT_DISTRO_VERSION, PROOT_DISTRO_BASE_URL
+    DEFAULT_PORT, PROOT_DISTRO_VERSION, PROOT_DISTRO_BASE_URL, ALPINE_DISTRO_BASE_URL
+)
+from lcsx.core.validation import (
+    validate_username, validate_password, validate_port,
+    validate_directory_path, validate_hostname, sanitize_input
 )
 
-def prompt_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_native=False, force_port=None):
+def prompt_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_native=False, force_port=None, enable_auth=None):
     """Prompt user for setup information."""
-    print_prompt("Enter username to create:")
-    user = input().strip()
-    print_prompt("Enter hostname:")
-    hostname = input().strip()
-    print_prompt("Enter password for user:")
-    password = input().strip()
+    # Username validation
+    while True:
+        print_prompt("Enter username to create:")
+        user = sanitize_input(input().strip(), max_length=32)
+        is_valid, error_msg = validate_username(user)
+        if is_valid:
+            break
+        print_error(error_msg)
+        print_main("Please try again.")
+    
+    # Hostname validation
+    while True:
+        print_prompt("Enter hostname:")
+        hostname = sanitize_input(input().strip(), max_length=253)
+        is_valid, error_msg = validate_hostname(hostname)
+        if is_valid:
+            break
+        print_error(error_msg)
+        print_main("Please try again.")
+    
+    # Password validation
+    while True:
+        print_prompt("Enter password for user:")
+        password = input().strip()
+        is_valid, error_msg = validate_password(password, min_length=6, require_complexity=False)
+        if is_valid:
+            break
+        print_error(error_msg)
+        print_main("Please try again.")
 
-    # Ask for custom data directory
+    # Ask for custom data directory with validation
     base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
     default_data_dir = os.path.join(base_dir, 'data')
     if pre_data_dir:
-        data_dir = pre_data_dir
+        is_valid, error_msg, abs_path = validate_directory_path(pre_data_dir, must_exist=False, must_be_writable=True)
+        if not is_valid:
+            print_error(error_msg)
+            print_warning(f"Falling back to default data directory: {default_data_dir}")
+            data_dir = default_data_dir
+        else:
+            data_dir = abs_path
     else:
         print_prompt(f"Do you want to use a custom path for the data folder? (default: {default_data_dir}) (y/n):")
         custom = input().strip().lower()
         if custom == 'y':
-            print_prompt("Enter the path for the data folder (relative to binary or absolute):")
-            data_dir_input = input().strip()
-            if os.path.isabs(data_dir_input):
-                data_dir = os.path.abspath(data_dir_input)
-                print(f"\033[97mIn the next run, use './lcsx -a \"{data_dir}\"' to start with this data directory.\033[0m")
-            else:
-                data_dir = os.path.join(base_dir, data_dir_input)
-                relative = os.path.relpath(data_dir, base_dir)
-                print_prompt(f"In the next run, use './lcsx {relative}' to start with this data directory.")
+            while True:
+                print_prompt("Enter the path for the data folder (relative to binary or absolute):")
+                data_dir_input = sanitize_input(input().strip())
+                is_valid, error_msg, abs_path = validate_directory_path(data_dir_input, must_exist=False, must_be_writable=True)
+                if is_valid:
+                    data_dir = abs_path
+                    if os.path.isabs(data_dir_input):
+                        print(f"\033[97mIn the next run, use './lcsx -a \"{data_dir}\"' to start with this data directory.\033[0m")
+                    else:
+                        relative = os.path.relpath(data_dir, base_dir)
+                        print_prompt(f"In the next run, use './lcsx {relative}' to start with this data directory.")
+                    break
+                else:
+                    print_error(error_msg)
+                    print_main("Please try again.")
         else:
             data_dir = default_data_dir
 
@@ -56,19 +95,27 @@ def prompt_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_n
         elif arch == 'aarch64':
             proot_bin = 'prootarm64'
 
-        # Define available distros with compatibility levels
+        # Define available distros with compatibility levels and shells
         distros = {
             'Debian': {
                 'url': f"{PROOT_DISTRO_BASE_URL}/debian-trixie-{arch}-pd-{PROOT_DISTRO_VERSION}.tar.xz",
-                'compat': 'Stable'
+                'compat': 'Stable',
+                'shell': '/bin/bash'
             },
             'Arch Linux': {
                 'url': f"{PROOT_DISTRO_BASE_URL}/archlinux-{arch}-pd-{PROOT_DISTRO_VERSION}.tar.xz",
-                'compat': 'Bleeding'
+                'compat': 'Bleeding',
+                'shell': '/bin/bash'
             },
             'Void': {
                 'url': f"{PROOT_DISTRO_BASE_URL}/void-{arch}-pd-{PROOT_DISTRO_VERSION}.tar.xz",
-                'compat': 'Balanced'
+                'compat': 'Balanced',
+                'shell': '/bin/bash'
+            },
+            'Alpine': {
+                'url': f"{ALPINE_DISTRO_BASE_URL}/alpine-{arch}-pd-v4.30.1.tar.xz",
+                'compat': 'Balanced',
+                'shell': '/bin/sh'
             },
         }
 
@@ -96,12 +143,15 @@ def prompt_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_n
             if 1 <= choice_num <= len(distros):
                 selected_distro = list(distros.keys())[choice_num - 1]
                 distro_url = distros[selected_distro]['url']
+                shell = distros[selected_distro]['shell']
             else:
                 print("\033[1;91mInvalid choice, defaulting to Debian.\033[0m")
                 distro_url = distros['Debian']['url']
+                shell = distros['Debian']['shell']
         except ValueError:
             print("\033[1;91mInvalid input, defaulting to Debian.\033[0m")
             distro_url = distros['Debian']['url']
+            shell = distros['Debian']['shell']
     else:
         print(f"\033[1;91mUnsupported architecture: {arch}\033[0m")
         exit(1)
@@ -134,11 +184,49 @@ def prompt_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_n
         if service_choice == '2':
             terminal_service = 'gotty'
             if force_port is None:
-                print_prompt(f"Enter the port for gotty (default: {DEFAULT_PORT}):")
-                port_input = input().strip()
-                terminal_port = int(port_input) if port_input.isdigit() else DEFAULT_PORT
+                while True:
+                    print_prompt(f"Enter the port for gotty (default: {DEFAULT_PORT}):")
+                    port_input = input().strip()
+                    if not port_input:
+                        terminal_port = DEFAULT_PORT
+                        break
+                    is_valid, error_msg, port_int = validate_port(port_input)
+                    if is_valid:
+                        terminal_port = port_int
+                        break
+                    else:
+                        print_error(error_msg)
+                        print_main("Please try again.")
             else:
-                terminal_port = force_port
+                is_valid, error_msg, port_int = validate_port(force_port)
+                if not is_valid:
+                    print_error(error_msg)
+                    print_warning(f"Using default port {DEFAULT_PORT}")
+                    terminal_port = DEFAULT_PORT
+                else:
+                    terminal_port = port_int
+            
+            # Check if enable_auth was provided via --credential argument
+            if enable_auth is not None:
+                # Use argument value (True/False)
+                if enable_auth:
+                    gotty_credential = f"{user}:{password}"
+                    print_main(f"GoTTY will use system credentials ({user}:****) for Basic Authentication.")
+                else:
+                    gotty_credential = None
+                    print_main("GoTTY will run without authentication.")
+            else:
+                # Ask if user wants to enable Basic Authentication
+                print_prompt("Do you want to enable Basic Authentication for gotty? (y/n, default: n):")
+                user_enable_auth = input().strip().lower()
+                if user_enable_auth == 'y':
+                    # Use system username and password for GoTTY Basic Authentication
+                    gotty_credential = f"{user}:{password}"
+                    print_main(f"GoTTY will use system credentials ({user}:****) for Basic Authentication.")
+                else:
+                    gotty_credential = None
+                    print_main("GoTTY will run without authentication.")
+            
             print_main("Setting up gotty...")
             gotty_path = setup_gotty(data_dir)
         elif service_choice == '3':
@@ -161,10 +249,12 @@ def prompt_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_n
         'arch': arch,
         'proot_bin': proot_bin,
         'distro_url': distro_url,
+        'shell': shell,
         'terminal_service': terminal_service,
         'terminal_port': terminal_port,
         'sshx_path': sshx_path,
-        'gotty_path': gotty_path, # Add gotty_path to config
+        'gotty_path': gotty_path,
+        'gotty_credential': gotty_credential if 'gotty_credential' in locals() else None,
         'data_dir': data_dir
     }
 

@@ -114,7 +114,8 @@ def start_proot_shell(config):
         f'CPU_COUNT={cpu_count}',
         f'RAM_TOTAL={ram_total}',
         f'DISK_TOTAL={disk_total}',
-        'HOME=/root'
+        'HOME=/root',
+        'PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin'
     ]
     # Prepend env vars to command
     env_command = ['env'] + env_vars + command
