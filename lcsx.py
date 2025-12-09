@@ -97,6 +97,10 @@ def setup_terminal_service(config, data_dir, service, port=None, credential=None
 def main():
     parser = argparse.ArgumentParser(description="LCSX - GUI CLI for Proot Automation")
     parser.add_argument('--auto', action='store_true', help="Run automatic setup")
+    parser.add_argument('--debian', action='store_true', help="Use Debian as the distribution in auto setup")
+    parser.add_argument('--alpine', action='store_true', help="Use Alpine as the distribution in auto setup")
+    parser.add_argument('--arch', action='store_true', help="Use Arch Linux as the distribution in auto setup")
+    parser.add_argument('--void', action='store_true', help="Use Void as the distribution in auto setup")
     parser.add_argument('--gotty', action='store_true', help="Use gotty as the terminal service")
     parser.add_argument('--sshx', action='store_true', help="Use sshx as the terminal service")
     parser.add_argument('--native', action='store_true', help="Use native terminal service")
@@ -214,11 +218,26 @@ def main():
             start_proot_shell(config)
         else:
             print_main("No configuration found. Running automatic setup...")
+            # Determine distro_name
+            distro_name = None
+            distro_flags = [args.debian, args.alpine, args.arch, args.void]
+            if sum(1 for flag in distro_flags if flag):
+                if sum(distro_flags) > 1:
+                    print_error("Error: Only one distribution flag (--debian, --alpine, --arch, --void) can be used at a time.")
+                    sys.exit(1)
+                if args.debian:
+                    distro_name = 'Debian'
+                elif args.alpine:
+                    distro_name = 'Alpine'
+                elif args.arch:
+                    distro_name = 'Arch Linux'
+                elif args.void:
+                    distro_name = 'Void'
             # Determine enable_auth from --credential argument
             enable_auth = None
             if args.credential:
                 enable_auth = args.credential.lower() == 'yes'
-            config = auto_setup(pre_data_dir=custom_data_dir, force_gotty=args.gotty, force_sshx=args.sshx, force_native=args.native, force_port=args.port, enable_auth=enable_auth)
+            config = auto_setup(pre_data_dir=custom_data_dir, force_gotty=args.gotty, force_sshx=args.sshx, force_native=args.native, force_port=args.port, enable_auth=enable_auth, distro_name=distro_name)
             if custom_data_dir:
                 config['data_dir'] = custom_data_dir
             setup_environment(config)

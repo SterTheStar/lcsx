@@ -7,12 +7,14 @@ from lcsx.core.gotty import setup_gotty
 from lcsx.core.sshx import setup_sshx
 from lcsx.config.constants import (
     DEFAULT_USER, DEFAULT_HOSTNAME, DEFAULT_PASSWORD,
-    DEFAULT_PORT, PROOT_DISTRO_VERSION, PROOT_DISTRO_BASE_URL
+    DEFAULT_PORT, PROOT_DISTRO_VERSION, PROOT_DISTRO_BASE_URL, ALPINE_DISTRO_BASE_URL
 )
 
-def auto_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_native=False, force_port=None, enable_auth=None):
+def auto_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_native=False, force_port=None, enable_auth=None, distro_name=None):
     """Automatic setup with predefined values."""
     user = DEFAULT_USER
+    # Use a default hostname and override once the distro is chosen so the shell
+    # prompt reflects the selected rootfs (e.g., alpine -> lcsx@alpine).
     hostname = DEFAULT_HOSTNAME
     password = DEFAULT_PASSWORD
     if force_port is None:
@@ -32,8 +34,49 @@ def auto_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_nat
         elif arch == 'aarch64':
             proot_bin = 'prootarm64'
 
-        # Select Debian
-        distro_url = f"{PROOT_DISTRO_BASE_URL}/debian-trixie-{arch}-pd-{PROOT_DISTRO_VERSION}.tar.xz"
+        # Define available distros with compatibility levels and shells
+        distros = {
+            'Debian': {
+                'url': f"{PROOT_DISTRO_BASE_URL}/debian-trixie-{arch}-pd-{PROOT_DISTRO_VERSION}.tar.xz",
+                'compat': 'Stable',
+                'shell': '/bin/bash'
+            },
+            'Arch Linux': {
+                'url': f"{PROOT_DISTRO_BASE_URL}/archlinux-{arch}-pd-{PROOT_DISTRO_VERSION}.tar.xz",
+                'compat': 'Bleeding',
+                'shell': '/bin/bash'
+            },
+            'Void': {
+                'url': f"{PROOT_DISTRO_BASE_URL}/void-{arch}-pd-{PROOT_DISTRO_VERSION}.tar.xz",
+                'compat': 'Balanced',
+                'shell': '/bin/bash'
+            },
+            'Alpine': {
+                'url': f"{ALPINE_DISTRO_BASE_URL}/alpine-{arch}-pd-v4.30.1.tar.xz",
+                'compat': 'Balanced',
+                'shell': '/bin/sh'
+            },
+        }
+
+        # Select distro
+        if distro_name and distro_name in distros:
+            selected_distro = distro_name
+        else:
+            selected_distro = 'Debian'  # Default
+
+        # Map distro name to a short hostname used in the shell prompt
+        hostname_map = {
+            'Debian': 'debian',
+            'Arch Linux': 'arch',
+            'Void': 'void',
+            'Alpine': 'alpine',
+        }
+
+        distro_info = distros[selected_distro]
+        distro_url = distro_info['url']
+        shell = distro_info['shell']
+        hostname = hostname_map.get(selected_distro, DEFAULT_HOSTNAME)
+        print_main(f"Selected distribution: {selected_distro}")
     else:
         print(f"\033[1;91mUnsupported architecture: {arch}\033[0m")
         exit(1)
@@ -86,6 +129,7 @@ def auto_setup(pre_data_dir=None, force_gotty=False, force_sshx=False, force_nat
         'arch': arch,
         'proot_bin': proot_bin,
         'distro_url': distro_url,
+        'shell': shell,
         'terminal_service': terminal_service,
         'terminal_port': terminal_port,
         'sshx_path': sshx_path,
